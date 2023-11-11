@@ -5,3 +5,15 @@ Homestead.json
 Homestead.yaml
 .env
 .phpunit.result.cache
+
+altriplite.sql
+
+app/._.DS_Store
+
+app/.DS_Store
+
+app/Models/.DS_Store
+
+app/Models/Entities/.DS_Store
+
+friendst_db (1).sql

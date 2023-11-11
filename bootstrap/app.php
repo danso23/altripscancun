@@ -72,9 +72,9 @@ $app->configure('app');
 |
 */
 
-// $app->middleware([
-//     App\Http\Middleware\ExampleMiddleware::class
-// ]);
+$app->middleware([
+    App\Http\Middleware\ExampleMiddleware::class
+]);
 
 // $app->routeMiddleware([
 //     'auth' => App\Http\Middleware\Authenticate::class,
@@ -111,5 +111,12 @@ $app->router->group([
 ], function ($router) {
     require __DIR__.'/../routes/web.php';
 });
+
+
+if ($app->environment() !== 'production') {
+  $app->register(Flipbox\LumenGenerator\LumenGeneratorServiceProvider::class);
+}
+$app->withEloquent(); //Para manejar bases de datos
+
 
 return $app;

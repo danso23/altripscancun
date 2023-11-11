@@ -14,3 +14,26 @@
 $router->get('/', function () use ($router) {
     return $router->app->version();
 });
+
+$router->group(['prefix' => 'api'], function () use ($router){
+
+    //Servicio
+    $router->post('/createtrip','Servicio@getInfoTrip');
+    $router->post('/savetrip','Servicio@savetrip');
+
+    //Get Catalogos
+    $router->get('/get','GetCatalogos@getCatalogos');
+    $router->get('/getElement','GetCatalogos@getElement');
+    
+    //Pruebas Paypal
+    $router->post('/createorder','Servicio@generaOrden');
+    $router->post('/confirmar','Servicio@ConfirmarPago');
+       
+    $router->get('/seepay','Servicio@vistaPaypal');
+
+    $router->get('/boton','GetCatalogos@obtenerElemento');
+
+    $router->get('/test','Servicio@testJSON');
+    $router->get('/testq','Servicio@testSelect');
+        
+});
