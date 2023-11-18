@@ -19,7 +19,7 @@ class Controller extends BaseController
         return $botonPaypal = "const FUNDING_SOURCES = [
                                 paypal.FUNDING.PAYPAL,                
                             ];
-                var actionStatus;            
+                var actionStatus;                
 
                 FUNDING_SOURCES.forEach(fundingSource => {
                   paypal.Buttons({
@@ -31,10 +31,7 @@ class Controller extends BaseController
                       color: (fundingSource == paypal.FUNDING.PAYLATER) ? 'gold' : '',
                     },                                       
                     createOrder: async (data, actions) => {
-                        
-                        // alert('NO');
-                        // return false;
-
+                                                
                         try {                                                    
                             const response = await fetch(\"".url('api/createorder')."\", {
                               method: \"POST\",
@@ -48,8 +45,7 @@ class Controller extends BaseController
                               })
                             });
 
-                            const details = await response.json();
-                            console.log(details);
+                            const details = await response.json();                            
                             return details.id;
                         }
                         catch (error) {
@@ -58,6 +54,7 @@ class Controller extends BaseController
                         }
                     },
                     onInit: function(data, actions) {
+                      
                       // Disable the buttons
                         console.log('Disable');
                         actions.disable(); 
@@ -82,8 +79,7 @@ class Controller extends BaseController
                         });                                                
                     },                            
                     onApprove: async (data, actions) => {                                        
-                      try {
-                        
+                      try {                                              
                         console.log(data);                                                
                         const form = document.getElementById('form-reservation-send');
 
@@ -108,26 +104,14 @@ class Controller extends BaseController
                             'Accept': 'application/json',
                             'Content-Type': 'application/json'
                           },                          
-                          body: JSON.stringify(data) //JSON.stringify({a: 1, b: 'Textual content'})
+                          body: JSON.stringify(data)
                         });
 
-                        const details = await response.json();
-                        
-                        // if(details.btrue){   
-                        //   // window.location.href = 'https://altripscancun.com/Reservation';  
-                        //   navigate('/Reservation', {
-                        //       state: {
-                        //           cJSON: details,
-                        //       }                
-                        //   });                        
-                        // }
-
-                        if(details.bError){
-
-                          alert(details.cMensagge);
-                          return false;
-
-                        }
+                        const details = await response.json();                        
+                        if(!details.bEstatus){   
+                          localStorage.setItem('set_compra', JSON.stringify(details.data));
+                          window.location.href = window.location.origin + '/Reservation';
+                        }                        
 
                         // Three cases to handle:
                         //   (1) Recoverable INSTRUMENT_DECLINED -> call actions.restart()

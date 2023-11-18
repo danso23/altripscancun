@@ -12,6 +12,7 @@ use App\Models\Entities\Client as Client;
 use App\Models\Entities\ShuttleReservation as ShuttleReservation;
 use App\Models\Entities\Reservation as Reservation;
 use Illuminate\Mail\Mailable;
+use Illuminate\Support\Facades\Mail;
 
 class Servicio extends Controller
 {
@@ -26,10 +27,14 @@ class Servicio extends Controller
             "APP_SECRET" => env("PAYPAL_SECRET")
         ];
 
-        $this->UrlPay = [
-            "sandbox" => "https://api-m.sandbox.paypal.com",
-            "production" => "https://api-m.paypal.com"
-        ];
+        $this->UrlPay['UrlPaypal'] = ($_SERVER['HTTP_HOST'] == 'localhost' || $_SERVER['HTTP_HOST'] == '127.0.0.1')
+                            ? "https://api-m.sandbox.paypal.com"
+                            : "https://api-m.paypal.com";
+
+        // $this->UrlPay = [
+        //     "sandbox" => "https://api-m.sandbox.paypal.com",
+        //     "production" => "https://api-m.paypal.com"
+        // ];
     }
 
     public function getInfoTrip(Request $request){
@@ -75,8 +80,10 @@ class Servicio extends Controller
                 ]);
             }
             
-            $departure_date     = strtotime($request->departure_date);
-            $new_departure_date = date("d-F-Y", $departure_date);
+
+
+            // $departure_date     = strtotime($request->departure_date);
+            // $new_departure_date = date("d-F-Y", $departure_date);
             
             // $data = array(
             //   'type_trip'     => $request->type_trip,
@@ -98,8 +105,8 @@ class Servicio extends Controller
                 'zone_id'       => $hotel->zone_id,
                 'pax'           => $request->passengers,
                 'total'         => $total,
-                'arrival_date'  => $request->arrival_date,
-                'departure_date'=> $new_departure_date,
+                'arrival_date'  => $this->convertHoraGeneralizada($request->arrival_date),
+                'departure_date'=> $this->convertHoraGeneralizada($request->departure_date),
                 "bton_paypal" => $this->obtenerBotonPaypal($total,$this->getTypeTrip($request->type_trip),$hotel->name),
                 "instance" => $this->instanciaPaypay()
             ];
@@ -304,10 +311,14 @@ class Servicio extends Controller
         return view('paypal');
     }
 
+    function vistaMail(){
+        return view('examplemail');
+    }
+
     public function generateAccessToken(){
                      
         try{   
-            $url  = $this->UrlPay["sandbox"]."/v1/oauth2/token";
+            $url  = $this->UrlPay["UrlPaypal"]."/v1/oauth2/token";
             $keyClien = $this->Keys['CLIENT_ID'];
             $data = "grant_type=client_credentials";        
             
@@ -364,7 +375,7 @@ class Servicio extends Controller
         // $orderId = $this->generaOrden($token);
         // return response()->json($request->all());//$orderId);
 
-        $url   = $this->UrlPay["sandbox"]."/v2/checkout/orders/".$request->orderID."/capture";
+        $url   = $this->UrlPay["UrlPaypal"]."/v2/checkout/orders/".$request->orderID."/capture";
 
         $header = [
             "User-Agent" => "allTripsCancun",
@@ -423,13 +434,7 @@ class Servicio extends Controller
                 'total'=>$dataPaypal['total_s'],
                 'code'=>$reservation_code,
                 'client_id'=>$client->id
-            ]);
-
-            if(!preg_match("/[a-z]/i", $dataPaypal["arrival_date_s"])){
-                //print "it has alphabet!";
-                $fecha = strtotime($dataPaypal["arrival_date_s"]);
-                $dataPaypal["arrival_date_s"] = date('d-F-Y',$fecha);
-            }
+            ]);            
 
             $sr = ShuttleReservation::create([
                 'type_trip'               => $dataPaypal['type_trip_s'],
@@ -438,13 +443,13 @@ class Servicio extends Controller
                 'arrival_airline'         => $dataPaypal['airlineArrival'],
                 'arrival_flight'          => $dataPaypal['flightNumberArrival'],
                 'arrival_time'            => $dataPaypal['arrivalHourArrival'],
-                'arrival_pickup'          => $dataPaypal['hotel_s'],
-                'arrival_destination'     => "Sin destino",
+                'arrival_pickup'          => $dataPaypal['airbnb'],
                 'departure_date'          => $dataPaypal['departure_date_s'],
                 'departure_airline'       => $dataPaypal['airlineDeparture'],
                 'departure_flight'        => $dataPaypal['flightNumberDeparture'],
                 'departure_time'          => $dataPaypal['arrivalHourDeparture'],
-                 'departure_pickup'       => "airport cancun",
+                'departure_pickup'        => $dataPaypal['hotel_s'],
+                'arrival_destination'     => $dataPaypal['hotel_s'],
                 // 'departure_pickup_time'   =>$request->departure_pickup_time.':'.$request->departure_pickup_time,
                 'departure_destination'   => 'Aiport Cancún',
                 'zone_id'                 => $dataPaypal['zone_s'],
@@ -458,23 +463,32 @@ class Servicio extends Controller
               [
                 'sale_id'  => $sale->id,
                 'subtotal' => $dataPaypal['total_s'],
-                // 'comments' => $request->comments,
+                //'comments' => $request->comments,
               ]
             );
 
+            $dataPaypal['reservation_code'] = $reservation_code;
+            $dataPaypal['payment_type'] = (isset($dataPaypal['payments'])) ? 'PAYPAL' : 'CASH';
+            $dataSend = $dataPaypal;
+
+            unset($dataSend['reference_id']);
+            unset($dataSend['shipping']);
+            unset($dataSend['payments']);
+
             if($save){
                 
-                $this->EnviarCorreo();
+                $this->EnviarCorreo($dataSend);
 
                 return response()->json([
                     'bEstatus' => false,
-                    'cMensagge' => 'Reservacion hecha'
+                    'cMensagge' => 'Reservacion hecha',
+                    'data' => $dataSend
                 ]);
             }
             else{
                 return response()->json([
                     'bEstatus' => true,
-                    'cMensagge' => 'Ocurrion un error -Contacte a su administrador'
+                    'cMensagge' => 'Ocurrion un error - Contacte a su administrador'
                 ]);
             }
 
@@ -497,38 +511,63 @@ class Servicio extends Controller
     }
 
     public function EnviarCorreo($datos){
-
-        $items = "";
-        $TemplateMail = view('template_mail.reservation_mail');//->with('datos',$items)->with('Neto', number_format($SumaNeta,2))->render(); 
-
-        \Mail::html($TemplateMail, function($message) use ($items) {
-            $mailDire = 'japj784@gmail.com';//Auth::user()->email;//$User->email;
-            $message->subject('Detalle de tu reserva')->to($mailDire);
-        }); 
+                    
+        $items = $datos;
         
-        // $TemplateMail = view('mails.comprador')->with('datos',$items)->with('Neto', number_format($SumaNeta,2))->render(); 
+        $arrayText = [
+            "hotel_s"=> "Hotel",
+            "total_s"=> "Mount Total",
+            "passenger_s"=> "Passenger",
+            'firstName' => "First Name",
+            "lastName"=> "Last Name",
+            "email"=> "Email",
+            "phone"=> "Phone",
+            "airbnb"=> "Arrivale Hotel",
+            "airlineArrival"=> "Airline Arrival",
+            "flightNumberArrival"=> "Flight Number Arrival",
+            "arrivalHourArrival"=> "Arrival Hour",
+            "airlineDeparture"=> "Airline Departure",
+            "flightNumberDeparture"=> "Flight Number Departure",
+            "arrivalHourDeparture"=> "Departure Hour",  
+            'departure_date_s'  => "Departure Date",
+            "arrival_date_s" => "Arrival Date",
+            "reservation_code " => "Reservation Code"
+        ];
 
-        // \Mail::html($TemplateMail, function($message) use ($items) {
-        //     $mailDire = 'japj784@gmail.com';//$User->email;
-        //     $message->subject('Detalle de tu compra')->to($mailDire);
-        // }); 
+        foreach($items as $index => $value){
+            if(isset($arrayText[$index])){
+                $newArray[$arrayText[$index]] = $value;
+            }            
+        }
 
+        $items = $newArray;
+
+        $TemplateMail = view('template_mail.reservation_mail')->with('datos',$items);//->with('Neto', number_format($SumaNeta,2))->render(); 
+
+        Mail::html($TemplateMail, function($message) use ($items) {            
+            $mailDire[] = $items['Email'];//Auth::user()->email;//$User->email;
+            $mailDire[] = 'reservations@altripscancun.com';
+            $message->subject('Detalle de tu reserva')->to($mailDire);
+        });                 
     }
 
     public function testSelect(){
         
-        $this->EnviarCorreo(false);
-        // $fecha = "11-September-2023";
-        // $fecha = "11-11-2023";
-        
-        // if(!preg_match("/[a-z]/i", $fecha)){
-        //     $fecha = strtotime($fecha);
-        //     $fecha = date('d-F-Y',$fecha);
-        //     return response()->json([
-        //         "FechaFormat" => $fecha
-        //     ]);
-        // }
+        // $datos['email'] = 'japj784@gmail.com';
+        // $this->EnviarCorreo($datos);        
 
+        // $fecha = "11-September-2023";
+        $fecha = "17/11/2023";
+        
+        if(!preg_match("/[a-z]/i", $fecha)){
+            $fecha = strtotime($fecha);
+            $fecha = date('d-F-Y',$fecha);
+            return response()->json([
+                "FechaFormat" => $fecha,
+                'urlFull' => url(),
+                'local' => $_SERVER['HTTP_HOST']
+            ]);
+        }
 
         // $hora = "5:47 AM";
         // $hora = trim(str_replace(['AM','PM'], '', $hora));
@@ -537,8 +576,7 @@ class Servicio extends Controller
         // ]);
 
         // $reservation_code = Sale::orderBy('id', 'DESC')->first(['id']);
-        // return response()->json(["id" => $reservation_code->id]);
-        
+        // return response()->json(["id" => $reservation_code->id]);        
     }
 
     public function testJSON(){
@@ -581,7 +619,7 @@ class Servicio extends Controller
         
         try{
 
-            $url   = $this->UrlPay["sandbox"]."/v2/checkout/orders"; 
+            $url   = $this->UrlPay["UrlPaypal"]."/v2/checkout/orders"; 
             $header = [
                 "User-Agent" => "allTripsCancun",
                 'Authorization' => "Bearer ".$token,
@@ -741,5 +779,17 @@ class Servicio extends Controller
             }
         }
         return $respuesta;
+    }
+
+    public function convertHoraGeneralizada($fecha){
+
+        if(preg_match("/[a-z]/i", $fecha)){
+            return $fecha;
+        }
+
+        $fecha = str_replace('/','-',$fecha);
+        $fecha = strtotime($fecha);
+        $fecha = date('d-F-Y',$fecha);
+        return $fecha;
     }
 }

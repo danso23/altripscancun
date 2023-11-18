@@ -6,6 +6,14 @@
     <title>Document</title>
 </head>
 <body>
+
+    <table>
+        <th>HOLA</th>
+    </table>
+
+    @foreach($datos as $dkey => $valur)
+        {{$dkey }} : {{$valur}} <br>
+    @endforeach
     
 </body>
 </html>
