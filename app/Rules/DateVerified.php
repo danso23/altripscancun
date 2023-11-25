@@ -25,22 +25,19 @@ class DateVerified implements Rule
      */
     public function passes($attribute, $value){
         
-        $Signo = (strstr($value, '/')) ? '/' : '-';
+        $Signo = (strstr($value, '/')) ? '/' : '-';          
 
         if($attribute == "arrival_date"){
             if(request()->type_trip == 1 || request()->type_trip == 2){
                 if($value != null || $value != ""){
-                    
-                    
                     $date = explode($Signo, $value);
-                    
-                    if(checkdate($date[0],$date[1],$date[2])){
+                    if(checkdate($date[1],$date[0],$date[2])){
                         if($value != null || $value != ''){
                             return true;
                         }
-                    }                
+                    }
                     return false;
-                }                
+                }
                 return true;
             }
         }
@@ -51,16 +48,14 @@ class DateVerified implements Rule
                     
                     $date = explode($Signo, $value);
                     
-                    if(checkdate($date[0],$date[1],$date[2])){
+                    if(checkdate($date[1],$date[0],$date[2])){
                         if($value != null || $value!=''){
                             return true;
                         }
-                    }
-                    
+                    }                    
                     return false;
                 }
-            }
-            
+            }            
             return true;
         }
         
@@ -74,6 +69,7 @@ class DateVerified implements Rule
      */
     public function message()
     {
-        return 'The validation error message.';
+        // return 'The validation error message.';
+        return 'The :attribute is bad, fix you please.';
     }
 }

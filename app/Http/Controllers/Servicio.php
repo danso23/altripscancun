@@ -45,16 +45,17 @@ class Servicio extends Controller
             // $total = $this->rate($hotel->zone_id, $request->passengers, $request->type_trip);
             /*            
             roud trip = 1
-            hote - airpot = 3
+            hotel - airpot = 3
             airpot - hotel = 2            
             */
             $this->validate($request, [
                 'type_trip' => 'required|in:1,2,3,4',                
                 'hotel_id' => 'required',
                 'passengers'=>'required|digits_between:1,10',
-                // 'arrival_date'=>[new DateVerified],
-                // 'departure_date'=>[new DateVerified],
+                'arrival_date'=> [new DateVerified],
+                'departure_date'=> [new DateVerified]
             ]);
+            
 
             $hotel = Hotel::where('id', $request->hotel_id)->first(['name','zone_id']);
             
@@ -78,9 +79,7 @@ class Servicio extends Controller
                     "lEstatus" => false,
                     "cEstatus" => "No existe cuota para este destino."
                 ]);
-            }
-            
-
+            }            
 
             // $departure_date     = strtotime($request->departure_date);
             // $new_departure_date = date("d-F-Y", $departure_date);
@@ -124,99 +123,21 @@ class Servicio extends Controller
 
     public function savetrip(Request $request){
 
-        return response()->json(['cMessage' => "LLegaron los parametros", "Parametros" => $request->all()],200);
-
-        try{
         
-            //dd($request->all());        
-            $myBook = \Session::get("bookData");
-            $reservation_code = Sale::orderBy('id', 'DESC')->first(['id']);
-        
-            if($reservation_code){
-              $reservation_code = "FTC-".((int)$reservation_code->id+1);
-            }
-            else{
-              $reservation_code = "FTC-1";
-            }
-
-        $client = Client::create(['name'=>$request->name,'email'=>$request->email,'phone'=>$request->phone]);
-        
-        $sale   = Sale::create(['status'=>2,'payment_type'=>$request->payment_type,'total'=>$myBook['total'],'code'=>$reservation_code,'client_id'=>$client->id]);
-
-        $departure_date2      = strtotime($myBook["departure_date"]);        
-        $new_departure_date2  = date("d-F-Y", $departure_date2);      
-
-        $sr = ShuttleReservation::create([
-          'type_trip'               => $myBook['type_trip'],
-          'pax'                     => $myBook['pax'],
-          'arrival_date'            => $myBook["arrival_date"],
-          'arrival_airline'         => $request->arrival_airline,
-          'arrival_flight'          => $request->arrival_flight,
-          'arrival_time'            => $request->arrival_time_hour.':'.$request->arrival_time_minutes,
-          'arrival_pickup'          => $request->hotel,
-          'arrival_destination'     => $myBook['place'],
-          'departure_date'          => $new_departure_date2,
-          'departure_airline'       => $request->departure_airline,
-          'departure_flight'        => $request->departure_flight,
-          'departure_time'          => $request->departure_time_hour.':'.$request->departure_time_minutes,
-          'departure_pickup'        => $myBook['place'],
-          //'departure_pickup_time'=>$request->departure_pickup_time.':'.$request->departure_pickup_time,
-          'departure_destination'   => 'Aiport Cancún',
-          'zone_id'                 => $myBook['zone_id']
-        ]);
-
-
-        $sr->reservation()->updateOrCreate([
-            'reservationtable_id'     => $sr->id,
-            'reservationtable_type'   => ShuttleReservation::class,
-          ],[
-            'sale_id'  => $sale->id,
-            'subtotal' => $myBook['total'],
-            'comments' => $request->comments,
-        ]);
-        
-        $data = array(
-          'sale'=> $sale->id,
-        );
-        
-        if($request->payment_type == "paypal"){
-            //dd($data);
-            $response = $this->getPaymentPaypal($request,$sr->id);
-            //dd($response);
-            
-            $bUpdate = Sale::where('id',$sale->id)
-                                ->update([
-                                  'payid' => $response['pay_id']
-                                ]);            
-
-            if(!$bUpdate){
-              return redirect()->back()->withErrors(trans('responses.totaliscero'))->withInput();
-            }
-
-            if(isset($response['error'])){
-              return redirect()->back()->withErrors(trans('responses.totaliscero'))->withInput();
-            }
-    
-            Session::put('bookData', $data);
-            session()->put('reservation_sent', 'true');
-            return \Redirect::to($response['url']);
+        $resp_val = $this->validationFormTrip($request->data);
+        if(!$resp_val['bEstatus']){
+            return response()->json([
+                'bError' => true,
+                'cMensagge' => $resp_val['cMensaje']
+            ]);
         }
-        else{
-            
-            $bookData = session('bookData');
-            $bookData['sale'] = $sale->id;
-            session()->put('bookData', $bookData);
-            self::sendEmail();
-       
-            Session::forget('bookData');
-            session()->put('reservation_sent', 'true');
-            return view("emails.view.reservation",compact("sale"));
-        }
-      }catch (\Exception $e) {
-        \Log::warning($e);
-        return redirect()->back()->withErrors(trans('responses.totaliscero'))->withInput();
-      }
 
+        return $bStatus = $this->set_travel($request->data);
+        
+      // }catch (\Exception $e) {
+      //   \Log::warning($e);
+      //   return redirect()->back()->withErrors(trans('responses.totaliscero'))->withInput();
+      // }
     }
 
     public function rate($zone_id,$pax,$type_trip){
@@ -249,29 +170,30 @@ class Servicio extends Controller
         }                        
     }
 
-    public function getTypeTrip($type_trip){
-      
+    public function getTypeTrip($type_trip){      
         // $lg = Session::get('lang');
-        $lg = "es";
+        $lg = "en";
 
-        if ($type_trip==1) {
-          if($lg == "es"){
-            return 'Transporación / Viaje Redondo';
-          }else{
-            return 'Shuttle / Round Trip';
-          }
-        } elseif ($type_trip==2) {
-          if($lg == "es"){
-            return 'Transportación / Del Aeropuerto';
-          }else{
-            return 'Shuttle / From Airport';
-          }
-        } elseif ($type_trip==3) {
-          if($lg == "es"){
-            return 'Transportación / Hacia el Aeropuerto';
-          }else{
-            return 'Shuttel / To Airport';
-          }
+        if($type_trip == 1) {
+            if($lg == "es"){
+                return 'Transporación / Viaje Redondo';
+            }else{
+                return 'Shuttle / Round Trip';
+            }
+        }
+        elseif($type_trip == 2) {
+            if($lg == "es"){
+                return 'Transportación / Del Aeropuerto';
+            }else{
+                return 'Shuttle / From Airport';
+            }
+        }
+        elseif($type_trip == 3){
+            if($lg == "es"){
+                return 'Transportación / Hacia el Aeropuerto';
+            }else{
+                return 'Shuttel / To Airport';
+            }
         }
     }
 
@@ -370,11 +292,7 @@ class Servicio extends Controller
             ]);
         }
 
-        $token = $this->generateAccessToken();
-
-        // $orderId = $this->generaOrden($token);
-        // return response()->json($request->all());//$orderId);
-
+        $token = $this->generateAccessToken();        
         $url   = $this->UrlPay["UrlPaypal"]."/v2/checkout/orders/".$request->orderID."/capture";
 
         $header = [
@@ -393,18 +311,12 @@ class Servicio extends Controller
         
 
         $respuesta = $this->GetCurl($url,true,$datos,$ret);
-        $respuesta = json_decode($respuesta,true);
+        $respuesta = json_decode($respuesta,true);        
         
         if($respuesta['status'] == "COMPLETED"){ 
-
             $respuesta = array_merge($respuesta['purchase_units'][0], $request->data);
-
             return $bStatus = $this->set_travel($respuesta);    
-        }
-        
-        // return response()->json($respuesta['status']);
-        // return response()->json($respuesta);
-
+        }                
     }
 
     public function set_travel($dataPaypal){
@@ -522,39 +434,78 @@ class Servicio extends Controller
             "lastName"=> "Last Name",
             "email"=> "Email",
             "phone"=> "Phone",
-            "airbnb"=> "Arrivale Hotel",
+            "airbnb"=> "Destination",
             "airlineArrival"=> "Airline Arrival",
             "flightNumberArrival"=> "Flight Number Arrival",
             "arrivalHourArrival"=> "Arrival Hour",
+            "arrival_date_s" => "Arrival Date",
             "airlineDeparture"=> "Airline Departure",
             "flightNumberDeparture"=> "Flight Number Departure",
             "arrivalHourDeparture"=> "Departure Hour",  
-            'departure_date_s'  => "Departure Date",
-            "arrival_date_s" => "Arrival Date",
-            "reservation_code " => "Reservation Code"
+            'departure_date_s'  => "Departure Date",            
+            "reservation_code" => "Reservation Code",
+            "payment_type" => "Payment Method"            
         ];
 
         foreach($items as $index => $value){
             if(isset($arrayText[$index])){
                 $newArray[$arrayText[$index]] = $value;
+            }
+            else{
+                $newArray[$index] = $value;
             }            
         }
-
+                
         $items = $newArray;
 
-        $TemplateMail = view('template_mail.reservation_mail')->with('datos',$items);//->with('Neto', number_format($SumaNeta,2))->render(); 
+
+       $TemplateMail = view('template_mail.reservation_mail')->with('datos',$items);//->with('Neto', number_format($SumaNeta,2))->render(); 
 
         Mail::html($TemplateMail, function($message) use ($items) {            
             $mailDire[] = $items['Email'];//Auth::user()->email;//$User->email;
             $mailDire[] = 'reservations@altripscancun.com';
-            $message->subject('Detalle de tu reserva')->to($mailDire);
+            $message->subject('Altrips - My Reservation - '.$items['Reservation Code'])->to($mailDire);
         });                 
     }
 
     public function testSelect(){
         
-        // $datos['email'] = 'japj784@gmail.com';
-        // $this->EnviarCorreo($datos);        
+         $datos['email'] = 'japj784@hotmail.com';
+         
+        // $datos['email'] = 'daniel.solis@merida.gob.mx';
+        $datos['reservation_code'] = "ATC-105";
+        $datos['firstName'] = "Jesús";
+        $datos['lastName'] = "Pazos";
+        $datos['payment_type'] = "Paypal";
+        $datos['phone'] = "9992189812";
+        $datos['airlineArrival'] = "America Airlines";
+        $datos['type_trip_s'] = "2";
+        // $datos['flightNumberArrival'] = "1990";
+        
+         
+        /*"hotel_s"=> "Hotel",
+        "total_s"=> "Mount Total",
+        "passenger_s"=> "Passenger",
+        'firstName' => "First Name",
+        "lastName"=> "Last Name",
+        "email"=> "Email",
+        "phone"=> "Phone",
+        "airbnb"=> "Arrivale Hotel",
+        "airlineArrival"=> "Airline Arrival",
+        "flightNumberArrival"=> "Flight Number Arrival",
+        "arrivalHourArrival"=> "Arrival Hour",
+        "arrival_date_s" => "Arrival Date",
+        "airlineDeparture"=> "Airline Departure",
+        "flightNumberDeparture"=> "Flight Number Departure",
+        "arrivalHourDeparture"=> "Departure Hour",  
+        'departure_date_s'  => "Departure Date",            
+        "reservation_code" => "Reservation Code",
+        "payment_type" => "Payment Method" */
+         
+         
+
+         
+        return $this->EnviarCorreo($datos);        
 
         // $fecha = "11-September-2023";
         $fecha = "17/11/2023";
@@ -607,8 +558,7 @@ class Servicio extends Controller
                     ]
                 ]
             ];
-
-        // return response()->json($datos);
+        
         echo json_encode($datos);
 
     }
@@ -748,7 +698,8 @@ class Servicio extends Controller
 
     public function validationFormTrip($data_trip){
 
-        $arrayNoValidate = ["airbnb","submit","hotel_s","total_s","passenger_s"];
+        // $arrayNoValidate = ["airbnb","submit","hotel_s","total_s","passenger_s"];
+        $arrayNoValidate = [];
         $arrayText = [
             "hotel_s"=> "Hotel",
             "total_s"=> "Mount Total",
@@ -763,13 +714,33 @@ class Servicio extends Controller
             "arrivalHourArrival"=> "Arrival Hour",
             "airlineDeparture"=> "Airline Departure",
             "flightNumberDeparture"=> "Flight Number Departure",
-            "arrivalHourDeparture"=> "Departure Hour"            
+            "arrivalHourDeparture"=> "Departure Hour",
+            "departure_date_s" => "Departure Date",
+            "arrival_date_s" => "Arrival Date",
+            "zone_s" => "Zone Hotel",            
         ];
 
         // print_r($data_trip);
         $respuesta['bEstatus'] = true;
         $respuesta['cMensaje'] = '';
-        foreach ($data_trip as $key => $value) {            
+        
+        foreach($arrayText as $KeyValue => $valor){
+            // if(!in_array($KeyValue, $data_trip)){
+            if (!array_key_exists($KeyValue, $data_trip)) {
+                $respuesta['bEstatus'] = false;
+                $respuesta['cMensaje'] = "The field ".$arrayText[$KeyValue]." is required.";
+                break;
+            }
+            else{
+                if(empty($valor)){
+                    $respuesta['bEstatus'] = false;
+                    $respuesta['cMensaje'] = "The field ".$arrayText[$KeyValue]." is not empty.";
+                    break;
+                }
+            }          
+        }
+
+        /*foreach ($data_trip as $key => $value) {            
             if(!in_array($key, $arrayNoValidate)){
                 if(empty($value)){
                     $respuesta['bEstatus'] = false;
@@ -777,7 +748,8 @@ class Servicio extends Controller
                     break;
                 }
             }
-        }
+        }*/
+
         return $respuesta;
     }
 
