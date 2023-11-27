@@ -19,6 +19,7 @@ class Servicio extends Controller
     
     public $Keys = [];
     public $UrlPay = [];
+    public $globalTest = "";
 
     public function __construct() {
         
@@ -30,6 +31,10 @@ class Servicio extends Controller
         $this->UrlPay['UrlPaypal'] = ($_SERVER['HTTP_HOST'] == 'localhost' || $_SERVER['HTTP_HOST'] == '127.0.0.1')
                             ? "https://api-m.sandbox.paypal.com"
                             : "https://api-m.paypal.com";
+
+        $this->globalTest = ($_SERVER['HTTP_HOST'] == 'localhost' || $_SERVER['HTTP_HOST'] == '127.0.0.1')
+                            ? " [DESARROLLO] "
+                            : "";
 
         // $this->UrlPay = [
         //     "sandbox" => "https://api-m.sandbox.paypal.com",
@@ -389,12 +394,12 @@ class Servicio extends Controller
 
             if($save){
                 
-                $this->EnviarCorreo($dataSend);
+                $this->EnviarCorreo($dataSend);                
 
                 return response()->json([
                     'bEstatus' => false,
                     'cMensagge' => 'Reservacion hecha',
-                    'data' => $dataSend
+                    'data' => $dataSend                    
                 ]);
             }
             else{
@@ -458,58 +463,60 @@ class Servicio extends Controller
                 
         $items = $newArray;
 
-
-       $TemplateMail = view('template_mail.reservation_mail')->with('datos',$items);//->with('Neto', number_format($SumaNeta,2))->render(); 
+        $TemplateMail = view('template_mail.reservation_mail')->with('datos',$items);//->with('Neto', number_format($SumaNeta,2))->render(); 
 
         Mail::html($TemplateMail, function($message) use ($items) {            
             $mailDire[] = $items['Email'];//Auth::user()->email;//$User->email;
             $mailDire[] = 'reservations@altripscancun.com';
-            $message->subject('Altrips - My Reservation - '.$items['Reservation Code'])->to($mailDire);
-        });                 
+            $message->subject($this->globalTest.'Altrips - My Reservation - '.$items['Reservation Code'])->to($mailDire);            
+        });
     }
 
     public function testSelect(){
         
-         $datos['email'] = 'japj784@hotmail.com';
-         
-        // $datos['email'] = 'daniel.solis@merida.gob.mx';
-        $datos['reservation_code'] = "ATC-105";
-        $datos['firstName'] = "Jesús";
-        $datos['lastName'] = "Pazos";
-        $datos['payment_type'] = "Paypal";
-        $datos['phone'] = "9992189812";
-        $datos['airlineArrival'] = "America Airlines";
-        $datos['type_trip_s'] = "2";
-        // $datos['flightNumberArrival'] = "1990";
+        // $datos['email'] = 'japj784@gmail.com';                 
+        // $datos['reservation_code'] = "ATC-105";
+        // $datos['firstName'] = "Jesús";
+        // $datos['lastName'] = "Pazos";
+        // $datos['payment_type'] = "Paypal";
+        // $datos['phone'] = "9992189812";
+        // $datos['airlineArrival'] = "America Airlines";
+        // $datos['type_trip_s'] = "3";                     
+        // $datos["hotel_s"] = "Playa del Carmen Hotel by H&A";
+        // $datos["total_s"] = "85.00";
+        // $datos["passenger_s"] = "3";
+        // $datos["airbnb"] = "Cancun airport";
+        // $datos["flightNumberArrival"] = "0000";
+        // $datos["arrivalHourArrival"] = "12:00 AM";
+        // $datos["arrival_date_s"]  = "30-November-2023";
+        // $datos["airlineDeparture"] = "Colombian";
+        // $datos["flightNumberDeparture"] = "1009";
+        // $datos["arrivalHourDeparture"] = "12:00 AM";
+        // $datos['departure_date_s']   = "25-November-2023";
+        // $datos["payment_type"]  = "PAYPAL";
         
-         
-        /*"hotel_s"=> "Hotel",
-        "total_s"=> "Mount Total",
-        "passenger_s"=> "Passenger",
-        'firstName' => "First Name",
-        "lastName"=> "Last Name",
-        "email"=> "Email",
-        "phone"=> "Phone",
-        "airbnb"=> "Arrivale Hotel",
-        "airlineArrival"=> "Airline Arrival",
-        "flightNumberArrival"=> "Flight Number Arrival",
-        "arrivalHourArrival"=> "Arrival Hour",
-        "arrival_date_s" => "Arrival Date",
-        "airlineDeparture"=> "Airline Departure",
-        "flightNumberDeparture"=> "Flight Number Departure",
-        "arrivalHourDeparture"=> "Departure Hour",  
-        'departure_date_s'  => "Departure Date",            
-        "reservation_code" => "Reservation Code",
-        "payment_type" => "Payment Method" */
-         
-         
 
-         
-        return $this->EnviarCorreo($datos);        
+        // $this->EnviarCorreo($datos);        
 
-        // $fecha = "11-September-2023";
-        $fecha = "17/11/2023";
+        //$fecha = "11-September-2023";
+        $fecha = "12/12/2023";
+        // $fecha = "2023/11/20";
+        // $fecha = "12/12/2023";
+
+        $fecha = str_replace("/","-",$fecha);
+
+        //mmddyyyy
+        //ddmmyyyy
         
+        $timestamp = (preg_match('/^\d{4}-\d{2}-\d{2}$/', $fecha)) 
+                    ? 'Y-m-d' : ((preg_match('/\b(0[1-9]|1[0-2])-(0[1-9]|[1-2][0-9]|3[0-1])-\d{4}\b/', $fecha)) 
+                                ? 'm-d-Y' : ((preg_match('/\b(0[1-9]|[1-2][0-9]|3[0-1])-(0[1-9]|1[0-2])-\d{4}\b/', $fecha)) ? 'd-m-Y' : "No encontre Formato" ));
+
+        return response()->json([
+            "Format" => $timestamp,
+            "Fecha" => $fecha
+        ]);
+
         if(!preg_match("/[a-z]/i", $fecha)){
             $fecha = strtotime($fecha);
             $fecha = date('d-F-Y',$fecha);
