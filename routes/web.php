@@ -39,12 +39,18 @@ $router->group(['prefix' => 'api'], function () use ($router){
     //Admin
     $router->post('/setuser','AdministradorController@CreateUser');
     $router->post('/login','AdministradorController@login');
+    $router->post('/logout','AdministradorController@logout');
+    
 
 });
 
 
-$router->group(['prefix' => 'admin','middleware' => 'auth'],function () use ($router){
+$router->group(['prefix' => 'admin','middleware' => [/*'auth',*/'check']],function () use ($router){
     
     $router->get('/get_hotels', 'GetCatalogos@GetHotelEdit');
-
+    $router->get('/g_zn', 'GetCatalogos@GetZonas');
+    $router->post('/delete','AdministradorController@login');
+    $router->post('/d_hotel','GetCatalogos@DeleteItemHotel');
+    $router->post('/e_hotel','GetCatalogos@UpdateItemHotel');
+        
 });

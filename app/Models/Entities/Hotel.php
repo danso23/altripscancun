@@ -9,7 +9,7 @@ class Hotel extends Model
     protected $table = 'hotels';
     protected $primaryKey = 'id';
     protected $fillable = ['name', 'desc_hotel', 'zone_id', 'is_tour'];
-    public $timestamps = false;
+    public $timestamps = true;
 
 
     public function zone(){

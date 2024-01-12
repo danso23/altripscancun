@@ -78,6 +78,7 @@ $app->middleware([
 
 $app->routeMiddleware([
     'auth' => App\Http\Middleware\Authenticate::class,
+    'check' => App\Http\Middleware\TokenVerification::class,
 ]);
 
 /*

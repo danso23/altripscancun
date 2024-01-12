@@ -88,12 +88,7 @@ class Controller extends BaseController
 
                         var columns = {};
                         var objarray = [];                        
-                        formElements.forEach(element => {
-                            // columns = {
-                            //     name: element.name,
-                            //     value: element.value
-                            // };
-                            // objarray.push(columns);
+                        formElements.forEach(element => {                          
                             columns[element.name] = element.value;
                         });
                         data[\"data\"] = columns;                        
