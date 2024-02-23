@@ -11,6 +11,7 @@ use App\Models\Entities\Zone as Zona;
 use App\Models\Entities\ShuttleReservation as Shuttle;
 use App\Models\Entities\Reservation as Reservation;
 use App\Models\Entities\Client as Client;
+use App\Models\Entities\Sale as Sale;
 
 use \Illuminate\Support\Facades\Lang;
 class GetCatalogos extends Controller
@@ -28,6 +29,7 @@ class GetCatalogos extends Controller
         ]);
     }
 
+    //Function Admin
     public function GetHotelEdit(){
 
         $tours  = Hotel::orderBy('name')->where('is_tour', '1')->get(['name','id','sort_number'])->toArray();
@@ -192,6 +194,7 @@ class GetCatalogos extends Controller
                         // ->join('zones as z','z.id','=','sr.zone_id')//  %Y/%m/%d
                         ->select('c.name as Nombre','s.id as FolioVenta',
                                   's.code as FolioReservacion',
+                                  'sr.id as FolioShuRese',
                                   DB::raw('DATE_FORMAT(sr.created_at,"%d/%m/%Y") as FechaReservacion'),
                                  'sr.arrival_date as FechaLlegada','sr.arrival_time as HraLLegada',
                                  'sr.departure_date as FechaSalida','sr.departure_time as HoraPartida',
@@ -211,5 +214,60 @@ class GetCatalogos extends Controller
             'cEstatus' => '',
             'cData' => $DataReport
         ]);
+    }
+
+    public function update_travel(Request $request){
+
+        $paramsUpdate = [];
+        $iIdRegistro = (isset($request->idreg) && $request->idreg !== '') ? $request->idreg : '';
+        $dateLlegada = (isset($request->arrival_date_s) && !empty($request->arrival_date_s)) ? $request->arrival_date_s : '';
+        $dateSalida  = (isset($request->departure_date_s) && !empty($request->departure_date_s)) ? $request->departure_date_s : ''; 
+
+        if(empty($iIdRegistro)){
+            return response()->json([
+                'lEstatus' => true,
+                'cEstatus' => 'The ID Reservation field is required'
+            ]);
+        }
+
+        if(!empty($dateLlegada)){
+            $paramsUpdate['arrival_date'] = $dateLlegada;
+        }
+
+        if(!empty($dateSalida)){
+            $paramsUpdate['departure_date'] = $dateSalida;
+        }
+
+        DB::beginTransaction();
+        try{
+
+            $Reservation = Shuttle::find($iIdRegistro);
+            $sr = Shuttle::where('id',$iIdRegistro)->update($paramsUpdate);
+
+            if($sr){
+                DB::commit();
+                return response()->json([
+                    'lEstatus' => false,
+                    'cEstatus' => 'Item update success'
+                ]);
+            }
+            else{
+
+                DB::rollback();
+
+                return response()->json([
+                    'lEstatus' => true,
+                    'cEstatus' => 'I Have a error an update item, try again'
+                ]);
+            }
+            return response()->json(['data' => $sr]);
+        }
+        catch(\Illuminate\Database\QueryException $ex){
+            DB::rollback();
+            return response()->json([
+                'lError' => true,
+                'cError' => $ex->getMessage()
+            ]);
+        }
     }
 }

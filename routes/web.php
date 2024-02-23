@@ -57,4 +57,8 @@ $router->group(['prefix' => 'admin','middleware' => [/*'auth',*/'check']],functi
 
     $router->get('/g_r', 'GetCatalogos@GetReservation');
 
+    //Área de Reservaciones
+    $router->post('/u_trip', 'GetCatalogos@update_travel');
+
+
 });
