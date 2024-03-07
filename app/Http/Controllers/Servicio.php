@@ -4,7 +4,6 @@ namespace App\Http\Controllers;
 
 use Carbon\Carbon;
 use Illuminate\Http\Request;
-use App\Rules\DateVerified;
 use App\Models\Entities\Hotel as Hotel;
 use App\Models\Entities\Shuttle as Shuttle;
 use App\Models\Entities\Sale as Sale;
@@ -43,10 +42,7 @@ class Servicio extends Controller
     }
 
     public function getInfoTrip(Request $request){
-
-        
         try{
-
             // $total = $this->rate($hotel->zone_id, $request->passengers, $request->type_trip);
             /*            
             roud trip = 1
@@ -60,7 +56,6 @@ class Servicio extends Controller
                 'arrival_date'=> [new DateVerified],
                 'departure_date'=> [new DateVerified]
             ]);
-            
 
             $hotel = Hotel::where('id', $request->hotel_id)->first(['name','zone_id']);
             
@@ -102,7 +97,7 @@ class Servicio extends Controller
             
             $jsonReturn = [
                 'Hotel' => $hotel['name'],
-                'PagoTotal' => $total,
+                'PagoTotal' => $total ." USD",
                 'type_trip'     => $request->type_trip,
                 'place'         => $hotel->name,
                 'name'          => $this->getTypeTrip($request->type_trip),
@@ -325,11 +320,8 @@ class Servicio extends Controller
     }
 
     public function set_travel($dataPaypal){
-        
         // return response()->json($dataPaypal);
-
         try{
-            
             $reservation_code = Sale::orderBy('id', 'DESC')->first(['id']);
 
             if($reservation_code){
@@ -344,13 +336,15 @@ class Servicio extends Controller
                 'email' => $dataPaypal['email'],
                 'phone' => $dataPaypal['phone']
             ]); 
-
+            
+            $dataPaypal['total_s'] = preg_replace("/[^0-9.]/", "", $dataPaypal['total_s']);
+            
             $sale = Sale::create([
-                'status'=>2,
-                'payment_type'=> (isset($dataPaypal['payments'])) ? 'PAYPAL' : 'CASH',
-                'total'=>$dataPaypal['total_s'],
-                'code'=>$reservation_code,
-                'client_id'=>$client->id
+                'status'        => 2,
+                'payment_type'  => (isset($dataPaypal['payments'])) ? 'PAYPAL' : 'CASH',
+                'total'         => $dataPaypal['total_s'],
+                'code'          => $reservation_code,
+                'client_id'     => $client->id
             ]);            
 
             $sr = ShuttleReservation::create([
@@ -423,8 +417,7 @@ class Servicio extends Controller
             "recibido" => $dataPaypal, 
             "idRes" => strval($reservation_code),
             "idClient" => strval($client->id)
-        ]);         
-
+        ]);
     }
 
     public function EnviarCorreo($datos){
@@ -474,49 +467,54 @@ class Servicio extends Controller
 
     public function testSelect(){
         
-        // $datos['email'] = 'japj784@gmail.com';                 
-        // $datos['reservation_code'] = "ATC-105";
-        // $datos['firstName'] = "Jesús";
-        // $datos['lastName'] = "Pazos";
-        // $datos['payment_type'] = "Paypal";
-        // $datos['phone'] = "9992189812";
-        // $datos['airlineArrival'] = "America Airlines";
-        // $datos['type_trip_s'] = "3";                     
-        // $datos["hotel_s"] = "Playa del Carmen Hotel by H&A";
-        // $datos["total_s"] = "85.00";
-        // $datos["passenger_s"] = "3";
-        // $datos["airbnb"] = "Cancun airport";
-        // $datos["flightNumberArrival"] = "0000";
-        // $datos["arrivalHourArrival"] = "12:00 AM";
-        // $datos["arrival_date_s"]  = "30-November-2023";
-        // $datos["airlineDeparture"] = "Colombian";
-        // $datos["flightNumberDeparture"] = "1009";
-        // $datos["arrivalHourDeparture"] = "12:00 AM";
-        // $datos['departure_date_s']   = "25-November-2023";
-        // $datos["payment_type"]  = "PAYPAL";
+        //Artisan::call('migrate');
+                
+        $hotel = ShuttleReservation::latest()->first();//orderBy('id','desc')->first()->toArray();
         
-
-        // $this->EnviarCorreo($datos);        
-
-        //$fecha = "11-September-2023";
-        $fecha = "12/12/2023";
-        // $fecha = "2023/11/20";
-        // $fecha = "12/12/2023";
-
-        $fecha = str_replace("/","-",$fecha);
-
-        //mmddyyyy
-        //ddmmyyyy
-        
-        $timestamp = (preg_match('/^\d{4}-\d{2}-\d{2}$/', $fecha)) 
-                    ? 'Y-m-d' : ((preg_match('/\b(0[1-9]|1[0-2])-(0[1-9]|[1-2][0-9]|3[0-1])-\d{4}\b/', $fecha)) 
-                                ? 'm-d-Y' : ((preg_match('/\b(0[1-9]|[1-2][0-9]|3[0-1])-(0[1-9]|1[0-2])-\d{4}\b/', $fecha)) ? 'd-m-Y' : "No encontre Formato" ));
-
         return response()->json([
-            "Format" => $timestamp,
-            "Fecha" => $fecha
-        ]);
+            "No de reservaciones" => $hotel['id']
+        ]);    
 
+    
+        
+        // $datos['email'] = 'daniel.solis@merida.gob.mx'; 
+        $datos['email'] = 'japj784@hotmail.com';        
+        $datos['reservation_code'] = "ATC-105";
+        $datos['firstName'] = "Jesús";
+        $datos['lastName'] = "Pazos";
+        $datos['payment_type'] = "Paypal";
+        $datos['phone'] = "9992189812";
+        $datos['airlineArrival'] = "America Airlines";
+        $datos['type_trip_s'] = "2";
+        // $datos['flightNumberArrival'] = "1990";        
+         
+        /*"hotel_s"=> "Hotel",
+        "total_s"=> "Mount Total",
+        "passenger_s"=> "Passenger",
+        'firstName' => "First Name",
+        "lastName"=> "Last Name",
+        "email"=> "Email",
+        "phone"=> "Phone",
+        "airbnb"=> "Arrivale Hotel",
+        "airlineArrival"=> "Airline Arrival",
+        "flightNumberArrival"=> "Flight Number Arrival",
+        "arrivalHourArrival"=> "Arrival Hour",
+        "arrival_date_s" => "Arrival Date",
+        "airlineDeparture"=> "Airline Departure",
+        "flightNumberDeparture"=> "Flight Number Departure",
+        "arrivalHourDeparture"=> "Departure Hour",  
+        'departure_date_s'  => "Departure Date",            
+        "reservation_code" => "Reservation Code",
+        "payment_type" => "Payment Method" */
+         
+         
+
+         
+        return $this->EnviarCorreo($datos);        
+
+        // $fecha = "11-September-2023";
+        $fecha = "17/11/2023";
+        
         if(!preg_match("/[a-z]/i", $fecha)){
             $fecha = strtotime($fecha);
             $fecha = date('d-F-Y',$fecha);
