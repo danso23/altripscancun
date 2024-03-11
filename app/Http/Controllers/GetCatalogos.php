@@ -12,6 +12,7 @@ use App\Models\Entities\ShuttleReservation as Shuttle;
 use App\Models\Entities\Reservation as Reservation;
 use App\Models\Entities\Client as Client;
 use App\Models\Entities\Sale as Sale;
+use App\Models\Entities\Shuttle as Rate;
 
 use \Illuminate\Support\Facades\Lang;
 class GetCatalogos extends Controller
@@ -32,12 +33,41 @@ class GetCatalogos extends Controller
     //Function Admin
     public function GetHotelEdit(){
 
-        $tours  = Hotel::orderBy('name')->where('is_tour', '1')->get(['name','id','sort_number'])->toArray();
+        // $tours  = Hotel::orderBy('name')->where('is_tour', '1')->get(['name','id','sort_number'])->toArray();
         $hotels = Hotel::orderBy('name')->where([ ['is_tour', '0'], ['bActivo', '1'] ])->get(['name','zone_id','id'])->toArray();
 
+        $results = DB::select( DB::raw("select h.id,h.name,h.zone_id, group_concat(p.min, '-',p.max,'@',p.onewaymx,',',p.roundtripmx separator '|') as paxes
+                                            from hotels h
+                                            join (select zone_id, min,max,onewaymx, roundtripmx 
+                                            from shuttle_rates sr 
+                                        ) p on p.zone_id = coalesce(h.zone_id)
+                                        group by h.id") );
+
+        $data = [];
+        $infoData = [];
+        foreach($results as $index => $value){
+            // "1-5@50.00,85.00|6-10@60.00,100.00
+            // 0-> "1-5@50.00,85.00
+            // 1-> 6-10@60.00,100.00
+            if(!empty($value->paxes)){
+                $descom = explode('|', $value->paxes);
+                for($in = 0; $in < sizeof($descom);$in++){
+                    
+                    $label = ($in == 0) ? "Min" : "Max";
+
+                    $Pax = (!empty($descom[$in])) ? explode('@',$descom[$in]) : '';
+                    $data['pax']        = (!empty($Pax)) ? $Pax[0] : '' ;
+                    $data['oneway']     = (!empty($Pax[1])) ? explode(',',$Pax[1])[0] : '';
+                    $data['roundtrip']  = (!empty($Pax[1])) ? explode(',',$Pax[1])[1] : '';
+                    $infoData[$label] = $data;
+                }
+            }
+            $value->paxes = $infoData;
+        }
+
         return response()->json([
-            'Hotels' => $hotels,
-            'Tours' => $tours
+            // 'cData' => $results,
+            'Hotels' => $results
         ]);
     }
 
