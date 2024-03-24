@@ -45,7 +45,7 @@ class TokenVerification
         //     'cabecera' => $headers
         // ]);
 
-        if(!isset($headers['X-Requested-With'])){            
+        if(!isset($headers['X-Requested-With'])){
             return response()->json([
                 'Unauthorized' => 401,
                 'lEstatus' => 'Header not found'
@@ -53,24 +53,25 @@ class TokenVerification
         }
         else{    
 
-            $token = $request->header('X-Requested-With');            
+            $token = $request->header('X-Requested-With');
             
             $User = User::where('api_token',$token)->first();
 
             if(empty($User)){
                 return response()->json([
                     'Unauthorized' => 401, 
-                    'lEstatus' => 'Token not found'
+                    'lEstatus' => 'Token not found',
+                    'redirect' => url()."/api/login"
                 ]);
             }
             
-            $HourNow = date('Y-m-d H:i:s');            
+            $HourNow = date('Y-m-d H:i:s');
             $dt1 = new \DateTime($HourNow);
-            $dt2 = new \DateTime($User->create_token);        
+            $dt2 = new \DateTime($User->create_token);
             $interval = $dt1->diff($dt2);            
             $totalMinutos=($interval->d * 24 * 60) + ($interval->h * 60) + $interval->i;
 
-            if($totalMinutos > 30){
+            if($totalMinutos > 1090){
                 
                 User::where('api_token',$token)->update(['api_token' => null, 'create_token' => null]);
 

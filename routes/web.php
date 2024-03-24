@@ -23,18 +23,15 @@ $router->group(['prefix' => 'api'], function () use ($router){
     $router->post('/create','Servicio@savetrip');
 
     //Get Catalogos
-    $router->get('/get','GetCatalogos@getCatalogos');
-    $router->get('/getElement','GetCatalogos@getElement');
+    $router->get('/get','GetCatalogos@getCatalogos'); //Vista
     
     //Servicios Paypal
     $router->post('/createorder','Servicio@generaOrden');
     
     //Rutas de prueba   
     $router->get('/seepay','Servicio@vistaPaypal');
-    $router->get('/boton','GetCatalogos@obtenerElemento');
     $router->get('/test','Servicio@testJSON');
     $router->get('/testq','Servicio@testSelect');
-
 
     //Admin
     $router->post('/setuser','AdministradorController@CreateUser');
@@ -59,6 +56,7 @@ $router->group(['prefix' => 'admin','middleware' => [/*'auth',*/'check']],functi
 
     //Área de Reservaciones
     $router->post('/u_trip', 'GetCatalogos@update_travel');
-
-
 });
+
+
+$router->get('/testLang','AdministradorController@lang');
